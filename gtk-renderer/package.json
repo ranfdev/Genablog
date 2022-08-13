@@ -1,0 +1,11 @@
+{
+  "name": "gtk-renderer",
+  "version": "1.0.0",
+  "description": "",
+  "main": "renderer.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "ranfdev",
+  "license": "ISC"
+}

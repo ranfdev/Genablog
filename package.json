@@ -1,0 +1,25 @@
+{
+  "name": "genablog",
+  "devDependencies": {
+    "@babel/cli": "^7.18.10",
+    "@babel/core": "^7.18.10",
+    "@rollup/plugin-babel": "^5.3.1",
+    "@rollup/plugin-commonjs": "^21.0.0",
+    "@rollup/plugin-node-resolve": "^13.3.0",
+    "babel-preset-solid": "^1.4.8",
+    "prettier": "2.7.1",
+    "rollup": "^2.77.2"
+  },
+  "dependencies": {
+    "@babel/preset-env": "^7.18.10",
+    "buffer": "^6.0.3",
+    "gray-matter": "^4.0.3",
+    "gtk-renderer": "./gtk-renderer/",
+    "lodash": "^4.17.21",
+    "marked": "^4.0.18",
+    "nunjucks": "^3.2.3",
+    "rollup-plugin-node-polyfills": "^0.2.1",
+    "solid-js": "^1.4.8",
+    "troll": "github:sonnyp/troll"
+  }
+}
