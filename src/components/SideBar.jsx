@@ -1,11 +1,12 @@
 import { For } from "solid-js";
 import Gtk from "gi://Gtk";
+import { getFileModTime } from "../fs/";
 
 export default function SideBar(props) {
-  const getFileModTime = (f) => {
-    let t = f.get_modification_date_time() ?? f.get_creation_date_time();
-    return t.format("%d %B %Y");
-  };
+  const pages = () =>
+    Object.values(props.posts ?? {})
+      .sort((a, b) => a.modified.localeCompare(b.modified))
+      .reverse();
   return (
     <gtk_Revealer
       reveal-child={props.revealed}
@@ -38,9 +39,9 @@ export default function SideBar(props) {
           show-end-title-buttons={false}
         />
         <gtk_ListBox on-row-activated={props.onActivateRow}>
-          <For each={props.posts}>
-            {(file) => (
-              <gtk_ListBoxRow ref={(row) => (row.file = file)}>
+          <For each={(console.log(pages().map((x) => x.title)), pages())}>
+            {(page) => (
+              <gtk_ListBoxRow ref={(row) => (row.page = page)}>
                 <gtk_Box
                   margin-top={16}
                   margin-bottom={16}
@@ -51,7 +52,7 @@ export default function SideBar(props) {
                   <gtk_Label
                     halign={Gtk.Align.START}
                     css-classes={["heading"]}
-                    label={file.get_name()}
+                    label={page.title}
                   />
                   <gtk_Label
                     halign={Gtk.Align.START}
@@ -61,7 +62,7 @@ export default function SideBar(props) {
                   <gtk_Label
                     halign={Gtk.Align.START}
                     css-classes={["caption"]}
-                    label={getFileModTime(file)}
+                    label={page.modified}
                   />
                 </gtk_Box>
               </gtk_ListBoxRow>

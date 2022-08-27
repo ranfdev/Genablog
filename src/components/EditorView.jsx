@@ -29,7 +29,7 @@ export default function EditorView(props) {
         null
       )
         .then(([_f, contents, _]) => {
-          if (lastFile != null) {
+          if (lastFile != null && untrack(edited)) {
             save(lastFile);
           }
 
@@ -38,8 +38,9 @@ export default function EditorView(props) {
           const text_decoder = new TextDecoder("utf-8");
           const text = text_decoder.decode(contents);
           view.buffer.set_text(text, text.length);
+          setEdited(false) // The file was just opened, enforce it's not edited.
         })
-        .catch((e) => console.error("Error opening file: ", e));
+        .catch((e) => console.error("Error opening file: ", e, e.message));
     }
   });
 
@@ -92,9 +93,7 @@ export default function EditorView(props) {
           view.buffer.set_style_scheme(theme);
 
           view.buffer.connect("notify::text", () => {
-            print("Edited");
             setEdited(true);
-
             props.onChange(view.buffer.text);
           });
         }}

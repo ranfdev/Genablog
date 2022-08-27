@@ -18,7 +18,7 @@ export default function ChooseFolderView(props) {
           on-clicked={() => {
             let fc = new Gtk.FileChooserNative({
               title: "Choose blog folder",
-              transient_for: win,
+              transient_for: props["parent-window"],
               modal: true,
               create_folders: true,
               action: Gtk.FileChooserAction.SELECT_FOLDER,

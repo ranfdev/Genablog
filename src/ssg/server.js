@@ -11,7 +11,7 @@ function handler(folder) {
       const filePath = path.slice(nextSlash+1, extension);
       console.log(filePath);
 
-      const resolvedPath = folder.get_child(filePath+".md").get_path();
+      const resolvedPath = folder.get_child(`content/blog/${filePath}.md`).get_path();
       let [_ok, contents] = GLib.file_get_contents(resolvedPath);
       contents = decoder.decode(contents);
 
@@ -33,7 +33,7 @@ function handler(folder) {
 
 export function createServer({ folder }) {
   const server = new Soup.Server();
-  server.add_handler("/", () => {
+  server.add_handler("/", (server, msg, path, query) => {
     msg
         .get_response_headers()
         .set_content_type("text/html", { charset: "UTF-8" });

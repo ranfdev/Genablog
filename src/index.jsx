@@ -1,4 +1,4 @@
-import { createEffect, Switch, Match } from "solid-js";
+import { createEffect, Switch, Match, createResource, createSignal } from "solid-js";
 import { createStore, produce } from "solid-js/store";
 import { render } from "gtk-renderer/renderer.js";
 import ChooseFolderView from "./components/ChooseFolderView.jsx";
@@ -8,6 +8,7 @@ import SideBar from "./components/SideBar.jsx";
 import debounce from "lodash/debounce";
 import { createSSG } from "./ssg/index";
 import { createServer } from "./ssg/server";
+import { listFiles } from "./fs/index.js";
 
 imports.gi.versions["Gtk"] = 4;
 imports.gi.versions["Soup"] = 3;
@@ -44,7 +45,7 @@ function getSessionStore() {
     setState(JSON.parse(dec.decode(contents)));
   } catch (e) {
     if (!e.matches(Gio.IOErrorEnum, Gio.IOErrorEnum.NOT_FOUND))
-      console.error("Reading session file: ", e);
+      console.error("Reading session file: ", e, e.message);
   }
 
   createEffect(() => {
@@ -75,14 +76,16 @@ function AppWindow(props) {
     folder: session.folderPath
       ? Gio.file_new_for_path(session.folderPath)
       : null,
-    posts: [],
+    posts: null,
     currentFile: null,
     view: "main",
   });
   let server = null;
+  let [ssg, setSSG] = createSignal(null);
 
   createEffect(async () => {
     const folder = state.folder;
+    console.log("FOLDER", folder);
     if (folder != null) {
       setSession({ folderPath: folder.get_path() });
 
@@ -90,25 +93,33 @@ function AppWindow(props) {
       server = createServer({ folder });
 
       try {
-        const ssg = await createSSG(folder, "simple");
-        ssg.render()
+        setSSG(await createSSG(folder, "simple"));
       } catch (e) {
         console.error(e, e.message);
       }
     }
   });
 
+  createEffect(() => {
+    if (!!ssg()) {
+      ssg().render()
+      setState({posts: ssg().pages()});
+    }
+  })
+
   const handleTextChange = debounce((text) => {
     print(text);
   }, 500);
 
   const handleNewFileRequest = () => {
-    let file = props.folder.get_child(`content/${Date.now()}.md`);
+    let file = state.folder.get_child(`content/blog/${Date.now()}.md`);
     file.create(Gio.FileCreateFlags.NONE, null);
     setState({ currentFile: file });
   };
 
   let leaflet;
+  let win;
+
   return (
     <adw_ApplicationWindow
       application={props.app}
@@ -122,22 +133,23 @@ function AppWindow(props) {
         x.add_action(a);
 
         x.present();
+        win = x;
       }}
     >
       <Switch>
         <Match when={state.folder === null}>
-          <ChooseFolderView onOpenFolder={(folder) => setState({ folder })} />
+          <ChooseFolderView parent-window={win} onOpenFolder={(folder) => setState({ folder })} />
         </Match>
         <Match when={state.view == "main"}>
           <gtk_Box orientation={Gtk.Orientation.VERTICAL}>
             <adw_Leaflet ref={leaflet}>
               <SideBar
                 revealed={state.sidebarRevealed}
-                posts={state.posts}
+                posts={state.posts ? state.posts : null}
                 onNewFileRequest={handleNewFileRequest}
                 onActivateRow={(_listbox, row) =>
                   setState({
-                    currentFile: state.folder.get_child(row.file.get_name()),
+                    currentFile: Gio.File.new_for_path(row.page.path),
                   })
                 }
               />

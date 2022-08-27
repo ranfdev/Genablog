@@ -17,8 +17,22 @@ Object.assign(Gtk.Box.prototype, {
     if (!anchor) {
       this.append(node);
     } else {
-      this.insert_child_after(node, node.get_prev_sibling());
+      this.insert_child_after(node, anchor.get_prev_sibling());
     }
+  },
+});
+Object.assign(Gtk.ListBox.prototype, {
+  insertNode(node, anchor) {
+    if (!anchor) {
+      this.append(node);
+    } else {
+      this.insert(node, anchor.get_index());
+    }
+  },
+});
+Object.assign(Gtk.ListBoxRow.prototype, {
+  getNextSibling() {
+    return this.get_parent().get_row_at_index(this.get_index() + 1);
   },
 });
 Object.assign(Adw.Leaflet.prototype, {
@@ -142,7 +156,6 @@ export {
   Index,
   ErrorBoundary,
 } from "solid-js";
-
 
 export function propertyBind(obj, value) {
   const [property, setField] = value();
