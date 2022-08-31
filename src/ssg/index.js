@@ -3,40 +3,38 @@ import GLib from "gi://GLib";
 import buffer from "buffer";
 import { marked } from "marked";
 import matter from "gray-matter";
-import { getFileModTime, listFiles } from "../fs/index.js";
+import { getFileModTime, listFiles, makeDirStructure } from "../fs/index.js";
 import { createEffect, createSignal } from "solid-js";
 import Gio from "gi://Gio";
 import { produce } from "solid-js/store";
 
-const RequiredFolders = ["content/blog", "themes", "static"];
-const RequiredFiles = ["config.toml"];
 var decoder = new TextDecoder();
 
 globalThis.Buffer = buffer.Buffer;
 
-function initSiteFolder(siteFolder) {
-  for (let fi of RequiredFolders) {
-    let f = siteFolder.get_child(fi);
-    if (!f.query_exists(null)) {
-      f.make_directory_with_parents(null);
-    }
-  }
-  for (let fi of RequiredFiles) {
-    let f = siteFolder.get_child(fi);
+function initSiteDir(siteDir) {
+  makeDirStructure(siteDir, {
+    blog: "content/blog",
+    themes: "themes",
+    static: "static",
+  });
+  const requiredFiles = ["config.toml"];
+  for (let fi of requiredFiles) {
+    let f = siteDir.get_child(fi);
     if (!f.query_exists(null)) {
       GLib.file_set_contents(f.get_path(), "");
     }
   }
 }
 
-async function isFolderEmpty(siteFolder) {
-  return !!(await listFiles(siteFolder).next());
+async function isDirEmpty(siteDir) {
+  return !!(await listFiles(siteDir).next());
 }
 
-function createTemplateEnv(themeFolder) {
+function createTemplateEnv(themeDir) {
   let Loader = nunjucks.Loader.extend({
     getSource: function (name) {
-      const path = themeFolder.get_path() + "/" + name;
+      const path = themeDir.get_path() + "/" + name;
       const [_ok, contents] = GLib.file_get_contents(path);
       return {
         src: decoder.decode(contents),
@@ -71,21 +69,25 @@ function readPageFull(f, fi) {
   return page;
 }
 function readPage(f) {
-  const fi = f.query_info(Gio.FILE_ATTRIBUTE_TIME_MODIFIED, Gio.FileQueryInfoFlags.NONE, null);
+  const fi = f.query_info(
+    Gio.FILE_ATTRIBUTE_TIME_MODIFIED,
+    Gio.FileQueryInfoFlags.NONE,
+    null
+  );
   return readPageFull(f, fi);
 }
-async function readPages(folder) {
-  const contentFolder = folder.get_child("content/blog");
-  const en = listFiles(contentFolder);
+async function readPages(dir) {
+  const contentDir = dir.get_child("content/blog");
+  const en = listFiles(contentDir);
   const initialPages = {};
 
   for await (let fi of en) {
-    const f = contentFolder.get_child(fi.get_name());
+    const f = contentDir.get_child(fi.get_name());
     initialPages[f.get_path()] = readPageFull(f, fi);
   }
 
   const [pages, setPages] = createSignal(initialPages);
-  const monitor = contentFolder.monitor_directory(
+  const monitor = contentDir.monitor_directory(
     Gio.FileMonitorFlags.WATCH_MOVES,
     null
   );
@@ -176,22 +178,25 @@ function deriveTaxonomies(pages, taxonomies) {
   return taxmap;
 }
 
-export async function createSSG(folder, theme) {
-  if (await isFolderEmpty(folder)) {
-    initSiteFolder(folder);
+export async function createSSG(dir, theme) {
+  if (await isDirEmpty(dir)) {
+    initSiteDir(dir);
   }
-  const themeFolder = folder.get_child(`themes/${theme}`);
+  const themeFolder = dir.get_child(`themes/${theme}`);
   const env = createTemplateEnv(themeFolder);
-  const pages = await readPages(folder);
+  const pages = await readPages(dir);
 
   return {
     taxonomies() {
       deriveTaxonomies(Object.values(pages()), taxonomies);
     },
-    render() {
-      console.log("RERENDER", Object.values(pages()).length);
+    renderToDir(dir) {
       for (let p of Object.values(pages())) {
-        console.log(env.render(p.template, { page: p }));
+        const rendered = env.render(p.template, { page: p });
+        const title = p.title;
+        const dirs = makeDirStructure(dir, { blog: "blog" });
+        const outPath = dirs.blog.get_child(`${title}.html`).get_path();
+        GLib.file_set_contents(outPath, rendered);
       }
     },
     pages() {

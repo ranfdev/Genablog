@@ -6,9 +6,6 @@ function handler(folder) {
   return (_server, msg, path, _query) => {
     try {
       msg.set_status(200, null);
-      const nextSlash = path.indexOf("/", 1);
-      const extension = path.lastIndexOf(".");
-      const filePath = path.slice(nextSlash+1, extension);
       console.log(filePath);
 
       const resolvedPath = folder.get_child(`content/blog/${filePath}.md`).get_path();

@@ -1,4 +1,10 @@
-import { createEffect, Switch, Match, createResource, createSignal } from "solid-js";
+import {
+  createEffect,
+  Switch,
+  Match,
+  createResource,
+  createSignal,
+} from "solid-js";
 import { createStore, produce } from "solid-js/store";
 import { render } from "gtk-renderer/renderer.js";
 import ChooseFolderView from "./components/ChooseFolderView.jsx";
@@ -8,17 +14,16 @@ import SideBar from "./components/SideBar.jsx";
 import debounce from "lodash/debounce";
 import { createSSG } from "./ssg/index";
 import { createServer } from "./ssg/server";
-import { listFiles } from "./fs/index.js";
+import { listFiles, makeDirStructure } from "./fs/index.js";
 
 imports.gi.versions["Gtk"] = 4;
 imports.gi.versions["Soup"] = 3;
 const { Gtk, Adw, Gio, GtkSource, GLib } = imports.gi;
 
 const PKG_NAME = "Genablog";
-var DataDir = Gio.file_new_for_path(
-  GLib.build_filenamev([GLib.get_user_data_dir(), PKG_NAME])
-);
-var win;
+var Dirs = makeDirStructure(Gio.File.new_for_path("/"), {
+  data: GLib.build_filenamev([GLib.get_user_data_dir(), PKG_NAME]),
+});
 
 if (typeof globalThis.queueMicrotask !== "function") {
   globalThis.queueMicrotask = function (callback) {
@@ -39,7 +44,7 @@ function getSessionStore() {
 
   try {
     const [_ok, contents] = GLib.file_get_contents(
-      DataDir.get_child("session.json").get_path()
+      Dirs.data.get_child("session.json").get_path()
     );
     const dec = new TextDecoder();
     setState(JSON.parse(dec.decode(contents)));
@@ -51,7 +56,7 @@ function getSessionStore() {
   createEffect(() => {
     try {
       GLib.file_set_contents(
-        DataDir.get_child("session.json").get_path(),
+        Dirs.data.get_child("session.json").get_path(),
         JSON.stringify(state)
       );
     } catch (e) {
@@ -63,13 +68,6 @@ function getSessionStore() {
 }
 
 function AppWindow(props) {
-  try {
-    DataDir.make_directory_with_parents(null);
-  } catch (e) {
-    if (!e.matches(Gio.IOErrorEnum, Gio.IOErrorEnum.EXISTS))
-      error(`Failed to create directory ${e}`);
-  }
-
   const [session, setSession] = getSessionStore();
   const [state, setState] = createStore({
     sidebarRevealed: true,
@@ -83,9 +81,9 @@ function AppWindow(props) {
   let server = null;
   let [ssg, setSSG] = createSignal(null);
 
+  // Handle state.folder changes
   createEffect(async () => {
     const folder = state.folder;
-    console.log("FOLDER", folder);
     if (folder != null) {
       setSession({ folderPath: folder.get_path() });
 
@@ -100,12 +98,17 @@ function AppWindow(props) {
     }
   });
 
+  // Handle page changes
   createEffect(() => {
     if (!!ssg()) {
-      ssg().render()
-      setState({posts: ssg().pages()});
+      setState({ posts: ssg().pages() });
+
+      const dirs = makeDirStructure(state.folder, {
+        build: "build",
+      });
+      ssg().renderToDir(dirs.build);
     }
-  })
+  });
 
   const handleTextChange = debounce((text) => {
     print(text);
@@ -138,7 +141,10 @@ function AppWindow(props) {
     >
       <Switch>
         <Match when={state.folder === null}>
-          <ChooseFolderView parent-window={win} onOpenFolder={(folder) => setState({ folder })} />
+          <ChooseFolderView
+            parent-window={win}
+            onOpenFolder={(folder) => setState({ folder })}
+          />
         </Match>
         <Match when={state.view == "main"}>
           <gtk_Box orientation={Gtk.Orientation.VERTICAL}>

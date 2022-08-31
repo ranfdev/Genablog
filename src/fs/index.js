@@ -36,3 +36,34 @@ export async function* listFiles(folder, chunkSize = 4) {
     }
   }
 }
+
+export function getExt(path) {
+  const nextSlash = path.lastIndexOf("/");
+  const extIndex = path.lastIndexOf(".");
+  const basename = path.slice(nextSlash + 1);
+  return basename.split(extIndex);
+}
+
+// Example: 
+// makeDirStructure(rootFile, {
+//   content: "content",
+//   blog: "content/blog",
+// })
+export function makeDirStructure(root, dirs) {
+  const res = {};
+  for (let [k, v] of Object.entries(dirs)) {
+    if (v.startsWith("/")) {
+      v = v.substring(1)
+    }
+    const c = root.get_child(v);
+    try {
+      c.make_directory_with_parents(null);
+    } catch (e) {
+      if (!e.matches(Gio.IOErrorEnum, Gio.IOErrorEnum.EXISTS)) {
+        throw e;
+      }
+    }
+    res[k] = c;
+  }
+  return res;
+}
