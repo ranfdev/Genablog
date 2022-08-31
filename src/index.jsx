@@ -12,7 +12,7 @@ import EditorView from "./components/EditorView.jsx";
 import ThemesView from "./components/ThemesView.jsx";
 import SideBar from "./components/SideBar.jsx";
 import debounce from "lodash/debounce";
-import { createSSG } from "./ssg/index";
+import { createSsg } from "./ssg/index";
 import { createServer } from "./ssg/server";
 import { listFiles, makeDirStructure } from "./fs/index.js";
 
@@ -67,6 +67,19 @@ function getSessionStore() {
   return [state, setState];
 }
 
+function SsgDebugWindow(props) {
+  return (
+    <adw_Window ref={(x) => x.present()}>
+      <gtk_Box orientation={Gtk.Orientation.VERTICAL} spacing={8}>
+        <adw_HeaderBar />
+        <gtk_Label label="State" css-classes={["heading"]}/>
+        <gtk_Label label={props.ssg?.state} />
+        <gtk_Label label="Directory" css-classes={["heading"]}/>
+        <gtk_Label label={props.ssg?.directory.get_path()} />
+      </gtk_Box>
+    </adw_Window>
+  );
+}
 function AppWindow(props) {
   const [session, setSession] = getSessionStore();
   const [state, setState] = createStore({
@@ -74,12 +87,11 @@ function AppWindow(props) {
     folder: session.folderPath
       ? Gio.file_new_for_path(session.folderPath)
       : null,
-    posts: null,
     currentFile: null,
     view: "main",
+    ssg: null,
   });
   let server = null;
-  let [ssg, setSSG] = createSignal(null);
 
   // Handle state.folder changes
   createEffect(async () => {
@@ -91,7 +103,7 @@ function AppWindow(props) {
       server = createServer({ folder });
 
       try {
-        setSSG(await createSSG(folder, "simple"));
+        setState({ ssg: await createSsg(folder, "simple") });
       } catch (e) {
         console.error(e, e.message);
       }
@@ -100,13 +112,14 @@ function AppWindow(props) {
 
   // Handle page changes
   createEffect(() => {
-    if (!!ssg()) {
-      setState({ posts: ssg().pages() });
-
+    if (!!state.ssg) {
       const dirs = makeDirStructure(state.folder, {
         build: "build",
       });
-      ssg().renderToDir(dirs.build);
+
+      if (!!state.ssg.pages) {
+          state.ssg.renderToDir(dirs.build).catch(e => console.log(e));
+      }
     }
   });
 
@@ -124,65 +137,68 @@ function AppWindow(props) {
   let win;
 
   return (
-    <adw_ApplicationWindow
-      application={props.app}
-      default_width={720}
-      default_height={720}
-      ref={(x) => {
-        let a = new Gio.SimpleAction({
-          name: "show-themes",
-        });
-        a.connect("activate", () => setState({ view: "themes" }));
-        x.add_action(a);
+    <>
+      <adw_ApplicationWindow
+        application={props.app}
+        default_width={720}
+        default_height={720}
+        ref={(x) => {
+          let a = new Gio.SimpleAction({
+            name: "show-themes",
+          });
+          a.connect("activate", () => setState({ view: "themes" }));
+          x.add_action(a);
 
-        x.present();
-        win = x;
-      }}
-    >
-      <Switch>
-        <Match when={state.folder === null}>
-          <ChooseFolderView
-            parent-window={win}
-            onOpenFolder={(folder) => setState({ folder })}
-          />
-        </Match>
-        <Match when={state.view == "main"}>
-          <gtk_Box orientation={Gtk.Orientation.VERTICAL}>
-            <adw_Leaflet ref={leaflet}>
-              <SideBar
-                revealed={state.sidebarRevealed}
-                posts={state.posts ? state.posts : null}
-                onNewFileRequest={handleNewFileRequest}
-                onActivateRow={(_listbox, row) =>
-                  setState({
-                    currentFile: Gio.File.new_for_path(row.page.path),
-                  })
-                }
-              />
-              <gtk_Separator
-                ref={(w) => leaflet.get_page(w).set_navigatable(false)}
-                orientation={Gtk.Orientation.VERTICAL}
-              />
-              <EditorView
-                setSidebarRevealed={() =>
-                  setState((s) => ({ sidebarRevealed: !s.sidebarRevealed }))
-                }
-                onChange={handleTextChange}
-                currentFile={state.currentFile}
-              />
-            </adw_Leaflet>
-          </gtk_Box>
-        </Match>
-        <Match when={state.view == "themes"}>
-          <ThemesView />
-        </Match>
-      </Switch>
-    </adw_ApplicationWindow>
+          x.present();
+          win = x;
+        }}
+      >
+        <Switch>
+          <Match when={state.folder === null}>
+            <ChooseFolderView
+              parent-window={win}
+              onOpenFolder={(folder) => setState({ folder })}
+            />
+          </Match>
+          <Match when={state.view == "main"}>
+            <gtk_Box orientation={Gtk.Orientation.VERTICAL}>
+              <adw_Leaflet ref={leaflet}>
+                <SideBar
+                  revealed={state.sidebarRevealed}
+                  posts={state.ssg?.pages}
+                  onNewFileRequest={handleNewFileRequest}
+                  onActivateRow={(_listbox, row) =>
+                    setState({
+                      currentFile: Gio.File.new_for_path(row.page.path),
+                    })
+                  }
+                />
+                <gtk_Separator
+                  ref={(w) => leaflet.get_page(w).set_navigatable(false)}
+                  orientation={Gtk.Orientation.VERTICAL}
+                />
+                <EditorView
+                  setSidebarRevealed={() =>
+                    setState((s) => ({ sidebarRevealed: !s.sidebarRevealed }))
+                  }
+                  onChange={handleTextChange}
+                  currentFile={state.currentFile}
+                />
+              </adw_Leaflet>
+            </gtk_Box>
+          </Match>
+          <Match when={state.view == "themes"}>
+            <ThemesView />
+          </Match>
+        </Switch>
+      </adw_ApplicationWindow>
+      <SsgDebugWindow ssg={state.ssg} />
+    </>
   );
 }
 
 // Create a new application
-let app = new Adw.Application({ application_id: "com.examp.GtkApplication" });
+let app = new Adw.Application({ application_id: "com.ranfdev.Genablog" });
 // When the application is launched…
 app.connect("activate", () => {
   render(() => <AppWindow app={app} />, app);
