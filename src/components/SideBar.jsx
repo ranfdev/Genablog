@@ -1,6 +1,7 @@
-import { For } from "solid-js";
+import { createEffect, For } from "solid-js";
 import Gtk from "gi://Gtk";
-import { getFileModTime } from "../fs/";
+import { getFileModTime } from "../fs/index.jsx";
+import { Key } from "@solid-primitives/keyed";
 
 export default function SideBar(props) {
   const pages = () =>
@@ -39,35 +40,43 @@ export default function SideBar(props) {
           show-end-title-buttons={false}
         />
         <gtk_ListBox on-row-activated={props.onActivateRow}>
-          <For each={(console.log(pages().map((x) => x.title)), pages())}>
-            {(page) => (
-              <gtk_ListBoxRow ref={(row) => (row.page = page)}>
-                <gtk_Box
-                  margin-top={16}
-                  margin-bottom={16}
-                  margin-start={8}
-                  margin-end={8}
-                  orientation={Gtk.Orientation.VERTICAL}
-                >
-                  <gtk_Label
-                    halign={Gtk.Align.START}
-                    css-classes={["heading"]}
-                    label={page.title}
-                  />
-                  <gtk_Label
-                    halign={Gtk.Align.START}
-                    css-classes={["body"]}
-                    label="Lorem Ipsum"
-                  />
-                  <gtk_Label
-                    halign={Gtk.Align.START}
-                    css-classes={["caption"]}
-                    label={page.modified}
-                  />
-                </gtk_Box>
-              </gtk_ListBoxRow>
-            )}
-          </For>
+          <Key each={pages()} by={p => p.modified}>
+            {(page) => {
+              let row;
+              createEffect(() => {
+                if (row) {
+                  row.page = page();
+                }
+              });
+              return (
+                <gtk_ListBoxRow ref={(r) => (row = r)}>
+                  <gtk_Box
+                    margin-top={16}
+                    margin-bottom={16}
+                    margin-start={8}
+                    margin-end={8}
+                    orientation={Gtk.Orientation.VERTICAL}
+                  >
+                    <gtk_Label
+                      halign={Gtk.Align.START}
+                      css-classes={["heading"]}
+                      label={page().title}
+                    />
+                    <gtk_Label
+                      halign={Gtk.Align.START}
+                      css-classes={["body"]}
+                      label="Lorem Ipsum"
+                    />
+                    <gtk_Label
+                      halign={Gtk.Align.START}
+                      css-classes={["caption"]}
+                      label={page().modified}
+                    />
+                  </gtk_Box>
+                </gtk_ListBoxRow>
+              );
+            }}
+          </Key>
         </gtk_ListBox>
       </gtk_Box>
     </gtk_Revealer>

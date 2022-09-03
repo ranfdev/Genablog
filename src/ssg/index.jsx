@@ -3,11 +3,28 @@ import GLib from "gi://GLib";
 import buffer from "buffer";
 import { marked } from "marked";
 import matter from "gray-matter";
-import { getFileModTime, listFiles, makeDirStructure } from "../fs/index.js";
-import { createEffect, createResource, createSignal } from "solid-js";
+import {
+  getFileModTime,
+  listFiles,
+  makeDirStructure,
+  Dir,
+  File,
+  renderFs,
+  Root,
+} from "../fs/index.jsx";
+import {
+  createEffect,
+  createMemo,
+  createResource,
+  createSignal,
+  For,
+  Show,
+} from "solid-js";
 import Gio from "gi://Gio";
+
 import { promiseTask } from "troll/src/util.js";
 import { createStore, produce } from "solid-js/store";
+import { Key } from "@solid-primitives/keyed";
 
 const STATE = {
   RENDERING: "rendering",
@@ -92,7 +109,7 @@ async function fetchPages(dir) {
   }
   return pages;
 }
-function monitorPages(dir, pages, mutate) {
+function monitorPages(dir, mutate) {
   const monitor = dir.monitor_directory(Gio.FileMonitorFlags.WATCH_MOVES, null);
   monitor.set_rate_limit(0);
 
@@ -106,18 +123,21 @@ function monitorPages(dir, pages, mutate) {
       // other_file is the destination file
       if (!isTempFile(other_file)) {
         try {
-          mutate({
-            ...pages(),
-            [other_file.get_path()]: readPage(other_file),
-          });
+          mutate(
+            produce((pages) => {
+              pages[other_file.get_path()] = readPage(other_file);
+            })
+          );
         } catch (e) {
           console.warn("Error reading changed file: ", e, e.message);
         }
       }
       if (!isTempFile(file)) {
-        const newPages = { ...pages() };
-        delete newPages[file.get_path()];
-        mutate(newPages);
+        mutate(
+          produce((pages) => {
+            delete pages[file.get_path()];
+          })
+        );
       }
     }
     if (
@@ -129,7 +149,11 @@ function monitorPages(dir, pages, mutate) {
     ) {
       if (!isTempFile(file)) {
         try {
-          mutate({ ...pages(), [file.get_path()]: readPage(file) });
+          mutate(
+            produce((pages) => {
+              pages[file.get_path()] = readPage(file);
+            })
+          );
         } catch (e) {
           console.warn("Error reading changed file: ", e, e.message);
         }
@@ -141,9 +165,11 @@ function monitorPages(dir, pages, mutate) {
       )
     ) {
       if (!isTempFile(file)) {
-        const newPages = { ...pages() };
-        delete newPages[file.get_path()];
-        mutate(newPages);
+        mutate(
+          produce((pages) => {
+            delete pages[file.get_path()];
+          })
+        );
       }
     }
   });
@@ -153,7 +179,7 @@ function usePages(dir) {
   const [pages, { mutate }] = createResource(
     async () => await fetchPages(bdir)
   );
-  monitorPages(bdir, pages, mutate);
+  monitorPages(bdir, mutate);
   return pages;
 }
 
@@ -187,43 +213,39 @@ function deriveTaxonomies(pages, taxonomies) {
   return taxmap;
 }
 
-export async function createSsg(dir, theme) {
+export function renderSite(ssgState) {
+  let fsTree = () => (
+    <>
+      <File path="index.html">Index</File>
+      <Dir path="blog">
+        <Key each={Object.values(ssgState.pages ?? {})} by={(p) => p.modified}>
+          {(p) => (
+            <Show when={p().title}>
+              <File path={`${p().title}.html`}>
+                {ssgState.templateEnv.render(p().template, { page: p() })}
+              </File>
+            </Show>
+          )}
+        </Key>
+      </Dir>
+    </>
+  );
+
+  return renderFs(fsTree, ssgState.buildDirectory);
+}
+export async function createSsg(dir, buildDirectory, theme) {
   const [ssgState, setSsgState] = createStore({
     state: STATE.INITIALIZING,
     pages: {},
     directory: dir,
+    buildDirectory,
+    theme,
+    templateEnv: createTemplateEnv(dir.get_child(`themes/${theme}`)),
     taxonomies() {
       deriveTaxonomies(Object.values(ssgState.pages), taxonomies);
     },
-    async renderToDir(dir) {
-      setSsgState({ state: STATE.RENDERING });
-      for (let p of Object.values(ssgState.pages)) {
-        const rendered = env.render(p.template, { page: p });
-        const title = p.title;
-        const dirs = makeDirStructure(dir, { blog: "blog" });
-        const child = dirs.blog.get_child(`${title}.html`);
-        const ioStream = await promiseTask(
-          child,
-          "replace_readwrite_async",
-          "replace_readwrite_finish",
-          null,
-          false,
-          Gio.FileCreateFlags.NONE,
-          0,
-          null
-        );
-        await promiseTask(
-          ioStream.get_output_stream(),
-          "write_all_async",
-          "write_all_finish",
-          rendered,
-          0,
-          null
-        );
-      }
-      setSsgState({ state: STATE.READY });
-    },
   });
+  renderSite(ssgState);
 
   // sync this signal to the main ssg store
   const pagesSignal = usePages(dir);
@@ -237,9 +259,6 @@ export async function createSsg(dir, theme) {
   }
 
   setSsgState({ state: STATE.READY });
-
-  const themeFolder = dir.get_child(`themes/${theme}`);
-  const env = createTemplateEnv(themeFolder);
 
   return ssgState;
 }

@@ -12,9 +12,9 @@ import EditorView from "./components/EditorView.jsx";
 import ThemesView from "./components/ThemesView.jsx";
 import SideBar from "./components/SideBar.jsx";
 import debounce from "lodash/debounce";
-import { createSsg } from "./ssg/index";
+import { createSsg } from "./ssg/index.jsx";
 import { createServer } from "./ssg/server";
-import { listFiles, makeDirStructure } from "./fs/index.js";
+import { listFiles, makeDirStructure } from "./fs/index.jsx";
 
 imports.gi.versions["Gtk"] = 4;
 imports.gi.versions["Soup"] = 3;
@@ -103,22 +103,12 @@ function AppWindow(props) {
       server = createServer({ folder });
 
       try {
-        setState({ ssg: await createSsg(folder, "simple") });
+        const dirs = makeDirStructure(state.folder, {
+          build: "build",
+        });
+        setState({ ssg: await createSsg(folder, dirs.build, "simple") });
       } catch (e) {
         console.error(e, e.message);
-      }
-    }
-  });
-
-  // Handle page changes
-  createEffect(() => {
-    if (!!state.ssg) {
-      const dirs = makeDirStructure(state.folder, {
-        build: "build",
-      });
-
-      if (!!state.ssg.pages) {
-          state.ssg.renderToDir(dirs.build).catch(e => console.log(e));
       }
     }
   });
