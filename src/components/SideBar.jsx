@@ -43,45 +43,50 @@ export default function SideBar(props) {
           title-widget={<gtk_Label label="Posts" />}
           show-end-title-buttons={false}
         />
-        <gtk_ListBox on-row-activated={props.onActivateRow}>
-          <Key each={pages()} by={(p) => p.modified}>
-            {(page) => {
-              let row;
-              createEffect(() => {
-                if (row) {
-                  row.page = page();
-                }
-              });
-              return (
-                <gtk_ListBoxRow ref={(r) => (row = r)}>
-                  <gtk_Box
-                    margin-top={16}
-                    margin-bottom={16}
-                    margin-start={8}
-                    margin-end={8}
-                    orientation={Gtk.Orientation.VERTICAL}
-                  >
-                    <gtk_Label
-                      halign={Gtk.Align.START}
-                      css-classes={["heading"]}
-                      label={page().title}
-                    />
-                    <gtk_Label
-                      halign={Gtk.Align.START}
-                      css-classes={["body"]}
-                      label="Lorem Ipsum"
-                    />
-                    <gtk_Label
-                      halign={Gtk.Align.START}
-                      css-classes={["caption"]}
-                      label={page().modified}
-                    />
-                  </gtk_Box>
-                </gtk_ListBoxRow>
-              );
-            }}
-          </Key>
-        </gtk_ListBox>
+        <gtk_ScrolledWindow
+          hscrollbar-policy={Gtk.PolicyType.NEVER}
+          propagate-natural-height={true}
+        >
+          <gtk_ListBox on-row-activated={props.onActivateRow}>
+            <Key each={pages()} by={(p) => p.modified}>
+              {(page) => {
+                let row;
+                createEffect(() => {
+                  if (row) {
+                    row.page = page();
+                  }
+                });
+                return (
+                  <gtk_ListBoxRow ref={(r) => (row = r)}>
+                    <gtk_Box
+                      margin-top={16}
+                      margin-bottom={16}
+                      margin-start={8}
+                      margin-end={8}
+                      orientation={Gtk.Orientation.VERTICAL}
+                    >
+                      <gtk_Label
+                        halign={Gtk.Align.START}
+                        css-classes={["heading"]}
+                        label={page().title}
+                      />
+                      <gtk_Label
+                        halign={Gtk.Align.START}
+                        css-classes={["body"]}
+                        label="Lorem Ipsum"
+                      />
+                      <gtk_Label
+                        halign={Gtk.Align.START}
+                        css-classes={["caption"]}
+                        label={page().modified}
+                      />
+                    </gtk_Box>
+                  </gtk_ListBoxRow>
+                );
+              }}
+            </Key>
+          </gtk_ListBox>
+        </gtk_ScrolledWindow>
       </gtk_Box>
     </gtk_Revealer>
   );

@@ -38,14 +38,14 @@ export default function EditorView(props) {
           const text_decoder = new TextDecoder("utf-8");
           const text = text_decoder.decode(contents);
           view.buffer.set_text(text, text.length);
-          setEdited(false) // The file was just opened, enforce it's not edited.
+          setEdited(false); // The file was just opened, enforce it's not edited.
         })
         .catch((e) => console.error("Error opening file: ", e, e.message));
     }
   });
 
   return (
-    <gtk_Box orientation={Gtk.Orientation.VERTICAL}>
+    <gtk_Box orientation={Gtk.Orientation.VERTICAL} width-request={270}>
       <adw_HeaderBar
         ref={(hb) => {
           hb.pack_start(
@@ -77,35 +77,37 @@ export default function EditorView(props) {
         }}
         css-classes={["flat"]}
       />
-      <gtkSource_View
-        ref={(_view) => {
-          view = _view;
+      <gtk_ScrolledWindow>
+        <gtkSource_View
+          ref={(_view) => {
+            view = _view;
 
-          let langmg = GtkSource.LanguageManager.get_default();
-          langmg.append_search_path("./data/");
-          let lang = langmg.get_language("markdown");
-          print(lang, lang.get_name());
-          view.buffer.set_language(lang);
+            let langmg = GtkSource.LanguageManager.get_default();
+            langmg.append_search_path("./data/");
+            let lang = langmg.get_language("markdown");
+            print(lang, lang.get_name());
+            view.buffer.set_language(lang);
 
-          let stylemg = GtkSource.StyleSchemeManager.get_default();
-          stylemg.append_search_path("./data/");
-          let theme = stylemg.get_scheme("adwaita_md");
-          view.buffer.set_style_scheme(theme);
+            let stylemg = GtkSource.StyleSchemeManager.get_default();
+            stylemg.append_search_path("./data/");
+            let theme = stylemg.get_scheme("adwaita_md");
+            view.buffer.set_style_scheme(theme);
 
-          view.buffer.connect("notify::text", () => {
-            setEdited(true);
-            props.onChange(view.buffer.text);
-          });
-        }}
-        wrap-mode={Gtk.WrapMode.CHAR}
-        hexpand={true}
-        vexpand={true}
-        top-margin={8}
-        bottom-margin={8}
-        left-margin={8}
-        right-margin={8}
-        width-request={340}
-      ></gtkSource_View>
+            view.buffer.connect("notify::text", () => {
+              setEdited(true);
+              props.onChange(view.buffer.text);
+            });
+          }}
+          wrap-mode={Gtk.WrapMode.CHAR}
+          hexpand={true}
+          vexpand={true}
+          top-margin={8}
+          bottom-margin={8}
+          left-margin={8}
+          right-margin={8}
+          width-request={340}
+        ></gtkSource_View>
+      </gtk_ScrolledWindow>
     </gtk_Box>
   );
 }
