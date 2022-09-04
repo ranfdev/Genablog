@@ -79,7 +79,6 @@ export function makeDirStructure(root, dirs) {
   return res;
 }
 async function replace(file, content) {
-  console.log("REPLACING ", file.get_path(), content)
   await promiseTask(
     file,
     "replace_contents_async",

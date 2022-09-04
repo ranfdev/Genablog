@@ -72,9 +72,9 @@ function SsgDebugWindow(props) {
     <adw_Window ref={(x) => x.present()}>
       <gtk_Box orientation={Gtk.Orientation.VERTICAL} spacing={8}>
         <adw_HeaderBar />
-        <gtk_Label label="State" css-classes={["heading"]}/>
+        <gtk_Label label="State" css-classes={["heading"]} />
         <gtk_Label label={props.ssg?.state} />
-        <gtk_Label label="Directory" css-classes={["heading"]}/>
+        <gtk_Label label="Directory" css-classes={["heading"]} />
         <gtk_Label label={props.ssg?.directory.get_path()} />
       </gtk_Box>
     </adw_Window>
@@ -88,8 +88,23 @@ function AppWindow(props) {
       ? Gio.file_new_for_path(session.folderPath)
       : null,
     currentFile: null,
-    view: "main",
+    history: ["main"],
     ssg: null,
+    view() {
+      return state.history[state.history.length - 1]
+    },
+    pushView(view) {
+      setState(produce((state) => {
+        state.history.push(view);
+      }));
+    },
+    back() {
+      setState(
+        produce((s) => {
+          if (s.history.length > 1) s.history.pop();
+        })
+      );
+    },
   });
   let server = null;
 
@@ -130,14 +145,19 @@ function AppWindow(props) {
     <>
       <adw_ApplicationWindow
         application={props.app}
-        default_width={720}
-        default_height={720}
+        default-width={720}
+        default-height={720}
         ref={(x) => {
-          let a = new Gio.SimpleAction({
-            name: "show-themes",
-          });
-          a.connect("activate", () => setState({ view: "themes" }));
-          x.add_action(a);
+          const actions = [
+            ["show-themes", () => state.pushView("themes")],
+            ["back", () => state.back()],
+          ];
+          for (let a of actions) {
+            const [name, callback] = a;
+            const action = Gio.SimpleAction.new(name, null);
+            action.connect("activate", callback);
+            x.add_action(action);
+          }
 
           x.present();
           win = x;
@@ -150,7 +170,7 @@ function AppWindow(props) {
               onOpenFolder={(folder) => setState({ folder })}
             />
           </Match>
-          <Match when={state.view == "main"}>
+          <Match when={state.view() == "main"}>
             <gtk_Box orientation={Gtk.Orientation.VERTICAL}>
               <adw_Leaflet ref={leaflet}>
                 <SideBar
@@ -177,7 +197,7 @@ function AppWindow(props) {
               </adw_Leaflet>
             </gtk_Box>
           </Match>
-          <Match when={state.view == "themes"}>
+          <Match when={state.view() == "themes"}>
             <ThemesView />
           </Match>
         </Switch>

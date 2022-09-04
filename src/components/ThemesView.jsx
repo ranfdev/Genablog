@@ -35,7 +35,16 @@ function ThemeCard(props) {
 export default function ThemesView() {
   return (
     <gtk_Box orientation={Gtk.Orientation.VERTICAL}>
-      <gtk_HeaderBar title="Themes" />
+      <gtk_HeaderBar
+        ref={(hb) => {
+          hb.pack_start(
+            <gtk_Button
+              icon-name="go-previous-symbolic"
+              action-name="win.back"
+            />
+          );
+        }}
+      />
       <gtk_FlowBox
         margin-start={8}
         margin-end={8}
