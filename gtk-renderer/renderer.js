@@ -68,6 +68,7 @@ export const {
   render,
   effect,
   memo,
+  use,
   createComponent,
   createElement,
   createTextNode,
