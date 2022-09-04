@@ -4,6 +4,7 @@ import {
   Match,
   createResource,
   createSignal,
+  ErrorBoundary,
 } from "solid-js";
 import { createStore, produce } from "solid-js/store";
 import { render } from "gtk-renderer/renderer.js";
@@ -15,6 +16,7 @@ import debounce from "lodash/debounce";
 import { createSsg } from "./ssg/index.jsx";
 import { createServer } from "./ssg/server";
 import { listFiles, makeDirStructure } from "./fs/index.jsx";
+import AppStateContext from "./AppStateContext.js";
 
 imports.gi.versions["Gtk"] = 4;
 imports.gi.versions["Soup"] = 3;
@@ -89,14 +91,17 @@ function AppWindow(props) {
       : null,
     currentFile: null,
     history: ["main"],
+    theme: "simple",
     ssg: null,
     view() {
-      return state.history[state.history.length - 1]
+      return state.history[state.history.length - 1];
     },
     pushView(view) {
-      setState(produce((state) => {
-        state.history.push(view);
-      }));
+      setState(
+        produce((state) => {
+          state.history.push(view);
+        })
+      );
     },
     back() {
       setState(
@@ -109,7 +114,7 @@ function AppWindow(props) {
   let server = null;
 
   // Handle state.folder changes
-  createEffect(async () => {
+  createEffect(() => {
     const folder = state.folder;
     if (folder != null) {
       setSession({ folderPath: folder.get_path() });
@@ -121,7 +126,7 @@ function AppWindow(props) {
         const dirs = makeDirStructure(state.folder, {
           build: "build",
         });
-        setState({ ssg: await createSsg(folder, dirs.build, "simple") });
+        setState({ ssg: createSsg(folder, dirs.build, state.theme) });
       } catch (e) {
         console.error(e, e.message);
       }
@@ -129,7 +134,7 @@ function AppWindow(props) {
   });
 
   const handleTextChange = debounce((text) => {
-    print(text);
+    // print(text);
   }, 500);
 
   const handleNewFileRequest = () => {
@@ -142,7 +147,7 @@ function AppWindow(props) {
   let win;
 
   return (
-    <>
+    <AppStateContext.Provider value={[state, setState]}>
       <adw_ApplicationWindow
         application={props.app}
         default-width={720}
@@ -163,47 +168,48 @@ function AppWindow(props) {
           win = x;
         }}
       >
-        <Switch>
-          <Match when={state.folder === null}>
-            <ChooseFolderView
-              parent-window={win}
-              onOpenFolder={(folder) => setState({ folder })}
-            />
-          </Match>
-          <Match when={state.view() == "main"}>
-            <gtk_Box orientation={Gtk.Orientation.VERTICAL}>
-              <adw_Leaflet ref={leaflet}>
-                <SideBar
-                  revealed={state.sidebarRevealed}
-                  posts={state.ssg?.pages}
-                  onNewFileRequest={handleNewFileRequest}
-                  onActivateRow={(_listbox, row) =>
-                    setState({
-                      currentFile: Gio.File.new_for_path(row.page.path),
-                    })
-                  }
-                />
-                <gtk_Separator
-                  ref={(w) => leaflet.get_page(w).set_navigatable(false)}
-                  orientation={Gtk.Orientation.VERTICAL}
-                />
-                <EditorView
-                  setSidebarRevealed={() =>
-                    setState((s) => ({ sidebarRevealed: !s.sidebarRevealed }))
-                  }
-                  onChange={handleTextChange}
-                  currentFile={state.currentFile}
-                />
-              </adw_Leaflet>
-            </gtk_Box>
-          </Match>
-          <Match when={state.view() == "themes"}>
-            <ThemesView />
-          </Match>
-        </Switch>
+        <ErrorBoundary fallback={(e) => console.log(e)}>
+          <Switch>
+            <Match when={state.folder === null}>
+              <ChooseFolderView
+                parent-window={win}
+                onOpenFolder={(folder) => setState({ folder })}
+              />
+            </Match>
+            <Match when={state.view() == "main"}>
+              <gtk_Box orientation={Gtk.Orientation.VERTICAL}>
+                <adw_Leaflet ref={leaflet}>
+                  <SideBar
+                    revealed={state.sidebarRevealed}
+                    posts={state.ssg?.pages}
+                    onNewFileRequest={handleNewFileRequest}
+                    onActivateRow={(_listbox, row) =>
+                      setState({
+                        currentFile: Gio.File.new_for_path(row.page.path),
+                      })
+                    }
+                  />
+                  <gtk_Separator
+                    ref={(w) => leaflet.get_page(w).set_navigatable(false)}
+                    orientation={Gtk.Orientation.VERTICAL}
+                  />
+                  <EditorView
+                    setSidebarRevealed={() =>
+                      setState((s) => ({ sidebarRevealed: !s.sidebarRevealed }))
+                    }
+                    onChange={handleTextChange}
+                    currentFile={state.currentFile}
+                  />
+                </adw_Leaflet>
+              </gtk_Box>
+            </Match>
+            <Match when={state.view() == "themes"}>
+              <ThemesView />
+            </Match>
+          </Switch>
+        </ErrorBoundary>
       </adw_ApplicationWindow>
-      <SsgDebugWindow ssg={state.ssg} />
-    </>
+    </AppStateContext.Provider>
   );
 }
 
