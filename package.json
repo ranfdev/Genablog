@@ -21,6 +21,7 @@
     "nunjucks": "^3.2.3",
     "rollup-plugin-node-polyfills": "^0.2.1",
     "solid-js": "^1.4.8",
+    "toml": "^3.0.0",
     "troll": "github:sonnyp/troll"
   }
 }

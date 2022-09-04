@@ -3,6 +3,7 @@ import GLib from "gi://GLib";
 import buffer from "buffer";
 import { marked } from "marked";
 import matter from "gray-matter";
+import toml from "toml"
 import {
   getFileModTime,
   listFiles,
@@ -82,7 +83,13 @@ function isTempFile(f) {
 
 function readPageFull(f, fi) {
   const [_ok, contents] = f.load_contents(null);
-  const m = matter(decoder.decode(contents));
+  const m = matter(decoder.decode(contents), {
+    engines: {
+      toml: toml.parse.bind(toml)
+    },
+    language: "toml",
+    delimiters: ["+++", "+++"],
+  });
   const page = {
     ...m.data,
     template: m.data.template ?? "index.html",
