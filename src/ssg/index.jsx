@@ -3,7 +3,7 @@ import GLib from "gi://GLib";
 import buffer from "buffer";
 import { marked } from "marked";
 import matter from "gray-matter";
-import toml from "toml"
+import toml from "toml";
 import {
   getFileModTime,
   listFiles,
@@ -11,13 +11,13 @@ import {
   Dir,
   File,
   renderFs,
-  Root,
 } from "../fs/index.jsx";
 import {
   createEffect,
   createMemo,
   createResource,
   createSignal,
+  ErrorBoundary,
   For,
   Show,
 } from "solid-js";
@@ -85,14 +85,14 @@ function readPageFull(f, fi) {
   const [_ok, contents] = f.load_contents(null);
   const m = matter(decoder.decode(contents), {
     engines: {
-      toml: toml.parse.bind(toml)
+      toml: toml.parse.bind(toml),
     },
     language: "toml",
     delimiters: ["+++", "+++"],
   });
   const page = {
     ...m.data,
-    template: m.data.template ?? "index.html",
+    template: m.data.template ?? "page.html",
     path: f.get_path(),
     content: marked(m.content),
     modified: fi.get_modification_date_time().format_iso8601(),
@@ -182,7 +182,7 @@ function monitorPages(dir, mutate) {
   });
 }
 function usePages(dir) {
-  const bdir = dir.get_child("content/blog");
+  const bdir = dir.get_child("content").get_child("blog");
   const [pages, { mutate }] = createResource(
     async () => await fetchPages(bdir)
   );
@@ -227,11 +227,13 @@ export function renderSite(ssgState) {
       <Dir path="blog">
         <Key each={Object.values(ssgState.pages ?? {})} by={(p) => p.modified}>
           {(p) => (
-            <Show when={p().title}>
-              <File path={`${p().title}.html`}>
-                {ssgState.templateEnv.render(p().template, { page: p() })}
-              </File>
-            </Show>
+            <ErrorBoundary fallback={(e) => console.error(e)}>
+              <Show when={p().title}>
+                <File path={`${p().title}.html`}>
+                  {ssgState.templateEnv.render(p().template, { page: p() })}
+                </File>
+              </Show>
+            </ErrorBoundary>
           )}
         </Key>
       </Dir>
@@ -240,14 +242,14 @@ export function renderSite(ssgState) {
 
   return renderFs(fsTree, ssgState.buildDirectory);
 }
-export async function createSsg(dir, buildDirectory, theme) {
+export function createSsg(dir, buildDirectory, theme) {
   const [ssgState, setSsgState] = createStore({
     state: STATE.INITIALIZING,
     pages: {},
     directory: dir,
     buildDirectory,
     theme,
-    templateEnv: createTemplateEnv(dir.get_child(`themes/${theme}`)),
+    templateEnv: createTemplateEnv(dir.get_child(`themes/${theme}/templates`)),
     taxonomies() {
       deriveTaxonomies(Object.values(ssgState.pages), taxonomies);
     },
@@ -261,11 +263,14 @@ export async function createSsg(dir, buildDirectory, theme) {
     setSsgState({ pages });
   });
 
-  if (await isDirEmpty(dir)) {
-    initSiteDir(dir);
-  }
-
-  setSsgState({ state: STATE.READY });
+  isDirEmpty(dir)
+    .then((empty) => {
+      if (empty) {
+        initSiteDir(dir);
+      }
+      setSsgState({ state: STATE.READY });
+    })
+    .catch(console.log);
 
   return ssgState;
 }
