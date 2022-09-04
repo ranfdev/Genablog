@@ -1,5 +1,7 @@
 import { createEffect, For } from "solid-js";
 import Gtk from "gi://Gtk";
+import Gio from "gi://Gio";
+import { Menu, MenuItem } from "gtk-renderer/Menu.jsx";
 import { getFileModTime } from "../fs/index.jsx";
 import { Key } from "@solid-primitives/keyed";
 
@@ -22,16 +24,18 @@ export default function SideBar(props) {
                 on-clicked={props.onNewFileRequest}
               />
             );
+
             hb.pack_end(
               <gtk_MenuButton
                 icon-name="open-menu-symbolic"
                 menu-model={
-                  <gio_Menu
-                    ref={(m) => {
-                      m.append("Themes", "win.show-themes");
-                      m.append("About", null);
-                    }}
-                  ></gio_Menu>
+                  <Menu>
+                    <MenuItem label="About" />
+                    <MenuItem
+                      label="Themes"
+                      detailed-action="win.show-themes"
+                    />
+                  </Menu>
                 }
               ></gtk_MenuButton>
             );
@@ -40,7 +44,7 @@ export default function SideBar(props) {
           show-end-title-buttons={false}
         />
         <gtk_ListBox on-row-activated={props.onActivateRow}>
-          <Key each={pages()} by={p => p.modified}>
+          <Key each={pages()} by={(p) => p.modified}>
             {(page) => {
               let row;
               createEffect(() => {

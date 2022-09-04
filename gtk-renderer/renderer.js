@@ -1,7 +1,7 @@
 import { createRenderer } from "solid-js/universal";
 imports.gi.versions.Gtk = "4.0";
 
-const { Gtk, Adw } = imports.gi;
+const { Gtk, Gio, Adw } = imports.gi;
 
 Object.assign(Gtk.Widget.prototype, {
   getFirstChild() {
@@ -57,6 +57,11 @@ Object.assign(Adw.Window.prototype, {
 Object.assign(Adw.ApplicationWindow.prototype, {
   getFirstChild() {
     return this.content;
+  },
+});
+Object.assign(Gio.Menu.prototype, {
+  insertNode(node, anchor) {
+    this.append_item(node);
   },
 });
 export const {
