@@ -11,6 +11,8 @@ import {
   Dir,
   File,
   renderFs,
+  RemoteDir,
+  Overlay,
 } from "../fs/index.jsx";
 import {
   createEffect,
@@ -223,20 +225,34 @@ function deriveTaxonomies(pages, taxonomies) {
 export function renderSite(ssgState) {
   let fsTree = () => (
     <>
-      <File path="index.html">Index</File>
-      <Dir path="blog">
-        <Key each={Object.values(ssgState.pages ?? {})} by={(p) => p.modified}>
-          {(p) => (
-            <ErrorBoundary fallback={(e) => console.error(e)}>
+      <ErrorBoundary fallback={(e) => console.error(e)}>
+        <File path="index.html">Index</File>
+        <Dir path="blog">
+          <Overlay
+            over={
+              <RemoteDir
+                dir={ssgState.directory.get_child("static")}
+              />
+            }
+          >
+            <RemoteDir
+              dir={ssgState.themeDirectory.get_child("static")}
+            />
+          </Overlay>
+          <Key
+            each={Object.values(ssgState.pages ?? {})}
+            by={(p) => p.modified}
+          >
+            {(p) => (
               <Show when={p().title}>
                 <File path={`${p().title}.html`}>
                   {ssgState.templateEnv.render(p().template, { page: p() })}
                 </File>
               </Show>
-            </ErrorBoundary>
-          )}
-        </Key>
-      </Dir>
+            )}
+          </Key>
+        </Dir>
+      </ErrorBoundary>
     </>
   );
 
@@ -246,9 +262,12 @@ export function createSsg(dir, buildDirectory, theme) {
   const [ssgState, setSsgState] = createStore({
     state: STATE.INITIALIZING,
     pages: {},
+    theme,
     directory: dir,
     buildDirectory,
-    theme,
+    get themeDirectory() {
+      return this.directory.get_child("themes").get_child(theme);
+    },
     templateEnv: createTemplateEnv(dir.get_child(`themes/${theme}/templates`)),
     taxonomies() {
       deriveTaxonomies(Object.values(ssgState.pages), taxonomies);
