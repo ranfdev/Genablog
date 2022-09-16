@@ -3,7 +3,7 @@ import Gtk from "gi://Gtk";
 import GtkSource from "gi://GtkSource";
 import GLib from "gi://GLib";
 import { promiseTask } from "troll/src/util.js";
-import { propertyBind } from "gtk-renderer";
+import { Child } from "gtk-renderer";
 
 export default function EditorView(props) {
   const [edited, setEdited] = createSignal(false);
@@ -46,37 +46,32 @@ export default function EditorView(props) {
 
   return (
     <gtk_Box orientation={Gtk.Orientation.VERTICAL} width-request={270}>
-      <adw_HeaderBar
-        ref={(hb) => {
-          hb.pack_start(
-            <gtk_Button
-              icon-name="sidebar-show-symbolic"
-              css-classes={["icon-button", "flat"]}
-              on-clicked={(e) => props.setSidebarRevealed((x) => !x)}
-            />
-          );
-          hb.pack_start(
-            <gtk_Button
-              sensitive={edited()}
-              icon-name="drive-harddisk-system-symbolic"
-              on-clicked={() => save(props.currentFile)}
-            />
-          );
-          hb.pack_end(
-            <gtk_Button
-              icon-name="eye-open-negative-filled-symbolic"
-              on-clicked={() =>
-                Gtk.show_uri(
-                  null,
-                  `http://localhost:1080/blog/${props.currentFile.get_basename()}`,
-                  0
-                )
-              }
-            />
-          );
-        }}
-        css-classes={["flat"]}
-      />
+      <adw_HeaderBar css-classes={["flat"]}>
+        <Child type="start">
+          <gtk_Button
+            icon-name="sidebar-show-symbolic"
+            css-classes={["icon-button", "flat"]}
+            on-clicked={(e) => props.setSidebarRevealed((x) => !x)}
+          />
+          <gtk_Button
+            sensitive={edited()}
+            icon-name="drive-harddisk-system-symbolic"
+            on-clicked={() => save(props.currentFile)}
+          />
+        </Child>
+        <Child type="end">
+          <gtk_Button
+            icon-name="eye-open-negative-filled-symbolic"
+            on-clicked={() =>
+              Gtk.show_uri(
+                null,
+                `http://localhost:1080/blog/${props.currentFile.get_basename()}`,
+                0
+              )
+            }
+          />
+        </Child>
+      </adw_HeaderBar>
       <gtk_ScrolledWindow>
         <gtkSource_View
           ref={(_view) => {

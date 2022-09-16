@@ -13,6 +13,7 @@ import {
 import fetch from "troll/src/std/fetch.js";
 import { delay } from "troll/src/util.js";
 import { useAppState } from "../AppStateContext";
+import { Child } from "gtk-renderer";
 
 const THEMES = [
   {
@@ -238,16 +239,11 @@ export default function ThemesView(props) {
   });
   return (
     <gtk_Box orientation={Gtk.Orientation.VERTICAL}>
-      <gtk_HeaderBar
-        ref={(hb) => {
-          hb.pack_start(
-            <gtk_Button
-              icon-name="go-previous-symbolic"
-              action-name="win.back"
-            />
-          );
-        }}
-      />
+      <gtk_HeaderBar>
+        <Child type="start">
+          <gtk_Button icon-name="go-previous-symbolic" action-name="win.back" />
+        </Child>
+      </gtk_HeaderBar>
       <gtk_FlowBox
         margin-start={8}
         margin-end={8}

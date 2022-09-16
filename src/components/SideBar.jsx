@@ -4,6 +4,7 @@ import Gio from "gi://Gio";
 import { Menu, MenuItem } from "gtk-renderer/Menu.jsx";
 import { getFileModTime } from "../fs/index.jsx";
 import { Key } from "@solid-primitives/keyed";
+import { Child } from "gtk-renderer";
 
 export default function SideBar(props) {
   const pages = () =>
@@ -16,33 +17,28 @@ export default function SideBar(props) {
       transition-type={Gtk.RevealerTransitionType.SLIDE_RIGHT}
     >
       <gtk_Box width-request={270} orientation={Gtk.Orientation.VERTICAL}>
-        <adw_HeaderBar
-          ref={(hb) => {
-            hb.pack_start(
-              <gtk_Button
-                icon-name="document-new-symbolic"
-                on-clicked={props.onNewFileRequest}
-              />
-            );
-
-            hb.pack_end(
-              <gtk_MenuButton
-                icon-name="open-menu-symbolic"
-                menu-model={
-                  <Menu>
-                    <MenuItem label="About" />
-                    <MenuItem
-                      label="Themes"
-                      detailed-action="win.show-themes"
-                    />
-                  </Menu>
-                }
-              ></gtk_MenuButton>
-            );
-          }}
-          title-widget={<gtk_Label label="Posts" />}
-          show-end-title-buttons={false}
-        />
+        <adw_HeaderBar show-end-title-buttons={false}>
+          <Child type="title">
+            <gtk_Label label="Posts" />
+          </Child>
+          <Child type="start">
+            <gtk_Button
+              icon-name="document-new-symbolic"
+              on-clicked={props.onNewFileRequest}
+            />
+          </Child>
+          <Child type="end">
+            <gtk_MenuButton
+              icon-name="open-menu-symbolic"
+              menu-model={
+                <Menu>
+                  <MenuItem label="About" />
+                  <MenuItem label="Themes" detailed-action="win.show-themes" />
+                </Menu>
+              }
+            ></gtk_MenuButton>
+          </Child>
+        </adw_HeaderBar>
         <gtk_ScrolledWindow
           hscrollbar-policy={Gtk.PolicyType.NEVER}
           propagate-natural-height={true}
