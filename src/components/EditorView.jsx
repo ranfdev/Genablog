@@ -50,7 +50,6 @@ export default function EditorView(props) {
         <Child type="start">
           <gtk_Button
             icon-name="sidebar-show-symbolic"
-            css-classes={["icon-button", "flat"]}
             on-clicked={(e) => props.setSidebarRevealed((x) => !x)}
           />
           <gtk_Button

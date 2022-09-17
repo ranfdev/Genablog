@@ -1,11 +1,9 @@
-import { children, createEffect } from "solid-js";
 import { createRenderer } from "solid-js/universal";
 imports.gi.versions.Gtk = "4.0";
 
-const { Gtk, Gio, Adw } = imports.gi;
-const INSERT_NODE_SYM = Symbol("Solid.insertNode");
-const APPLY_PARENT_SYM = Symbol("Solid.Custom.applyParent");
-const Builder = new Gtk.Builder();
+const { Gtk, Gio, Adw, GLib } = imports.gi;
+export const INSERT_NODE_SYM = Symbol("Solid.insertNode");
+export const APPLY_PARENT_SYM = Symbol("Solid.Custom.applyParent");
 
 Object.assign(Gtk.Widget.prototype, {
   getFirstChild() {
@@ -30,13 +28,13 @@ Object.assign(Gtk.ListBox.prototype, {
     if (!anchor) {
       this.append(node);
     } else {
-      this.insert(node, anchor.get_index());
+      this.insert(node, anchor.get_index() + 1);
     }
   },
 });
 Object.assign(Gtk.ListBoxRow.prototype, {
   getNextSibling() {
-    return this.get_parent().get_row_at_index(this.get_index() + 1);
+    return this.get_parent().get_row_at_index(this.get_index() + 1) || null;
   },
 });
 Object.assign(Adw.Leaflet.prototype, {
@@ -69,7 +67,7 @@ Object.assign(Gio.Menu.prototype, {
   },
 });
 
-function removeNode(parent, node) {
+export function removeNode(parent, node) {
   console.log("removeChild");
   if (parent.removeChild) {
     parent.removeChild(node);
@@ -127,10 +125,10 @@ export const {
   },
   insertNode(parent, node, anchor) {
     console.log("insertNode");
-    if (parent[INSERT_NODE_SYM]) {
-      parent[INSERT_NODE_SYM](node, anchor);
-    } else if (node[APPLY_PARENT_SYM]) {
+    if (node[APPLY_PARENT_SYM]) {
       node[APPLY_PARENT_SYM](parent, anchor);
+    } else if (parent[INSERT_NODE_SYM]) {
+      parent[INSERT_NODE_SYM](node, anchor);
     } else if (parent.set_content) {
       parent.set_content(node);
     } else if (parent.set_child) {
@@ -156,7 +154,11 @@ export const {
   },
   getNextSibling(node) {
     console.log("getNextSibling");
-    return node.getNextSibling();
+    if (node.getNextSibling) {
+      return node.getNextSibling();
+    } else {
+      return node.get_next_sibling();
+    }
   },
 });
 
@@ -171,108 +173,3 @@ export {
   Index,
   ErrorBoundary,
 } from "solid-js";
-
-// Start: Adapted from https://github.com/bodil/gx/blob/master/packages/core/jsx.ts
-export const MoveType = {
-  Remove: 0,
-  Insert: 1,
-};
-
-export function diff(oldList, newList) {
-  const oldIndex = new Set(oldList);
-  const newIndex = new Set(newList);
-  const moves = [];
-  const simulateList = [];
-
-  function insert(index, item) {
-    moves.push({
-      type: MoveType.Insert,
-      after: newList[index - 1] ?? null,
-      item,
-    });
-  }
-
-  oldList.forEach((item) => {
-    if (!item) {
-      return;
-    }
-    if (newIndex.has(item)) {
-      simulateList.push(item);
-    } else {
-      moves.push({ type: MoveType.Remove, item });
-    }
-  });
-
-  for (let i = 0, j = 0; i < newList.length; i++) {
-    const item = newList[i];
-    const simulateItem = simulateList[j];
-    if (Object.is(item, simulateItem)) {
-      j++;
-    } else if (!oldIndex.has(item)) {
-      insert(i, item);
-    } else {
-      const nextItem = simulateList[j + 1];
-      if (Object.is(nextItem, item)) {
-        simulateList.splice(j, 1);
-        j++;
-      } else {
-        insert(i, item);
-      }
-    }
-  }
-
-  return moves;
-}
-// End: Adapted from
-
-export function Child(props) {
-  let resolvedChildren = children(() => props.children);
-  let lastChildren = resolvedChildren.toArray();
-  let init = false;
-  let parentWidget = null;
-  let startChild;
-
-  createEffect(() => {
-    let lastChildrenSet = new Set(lastChildren);
-    const newChildren = resolvedChildren.toArray();
-    const moves = diff(lastChildren, newChildren);
-    if (!init) {
-      init = true;
-      return;
-    }
-    lastChildren = newChildren;
-    moves.forEach((move) => {
-      if (move.type === MoveType.Remove) {
-        removeNode(parentWidget, move.item);
-      } else {
-        if (!lastChildrenSet.has(move.item) && move.item) {
-          parentWidget.vfunc_add_child(Builder, move.item, props.type ?? null);
-        } else if (move.item) {
-          move.item.insert_after(parentWidget, move.after);
-        }
-      }
-    });
-  });
-
-
-  function applyFun(parent) {
-    let n = 0;
-    if (parent) {
-      for (let c of lastChildren) {
-        if (!c) {
-          continue;
-        }
-        parent.vfunc_add_child(Builder, c, props.type ?? null);
-        if (n > 0) {
-          continue;
-        }
-        n++;
-        parentWidget = c.get_parent();
-        startChild = parentWidget.get_last_child();
-      }
-    }
-  }
-  return {
-    [APPLY_PARENT_SYM]: applyFun,
-  };
-}

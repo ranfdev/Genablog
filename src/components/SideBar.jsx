@@ -1,16 +1,21 @@
-import { createEffect, For } from "solid-js";
+import { createEffect } from "solid-js";
 import Gtk from "gi://Gtk";
-import Gio from "gi://Gio";
 import { Menu, MenuItem } from "gtk-renderer/Menu.jsx";
-import { getFileModTime } from "../fs/index.jsx";
 import { Key } from "@solid-primitives/keyed";
-import { Child } from "gtk-renderer";
+import { Child, useGlobalCss, classes } from "gtk-renderer";
 
 export default function SideBar(props) {
   const pages = () =>
     Object.values(props.posts ?? {})
       .sort((a, b) => a.modified.localeCompare(b.modified))
       .reverse();
+
+  useGlobalCss(
+    `.file-sidebar row {
+      padding: 0.5em;
+    }`
+  );
+
   return (
     <gtk_Revealer
       reveal-child={props.revealed}
@@ -43,7 +48,10 @@ export default function SideBar(props) {
           hscrollbar-policy={Gtk.PolicyType.NEVER}
           propagate-natural-height={true}
         >
-          <gtk_ListBox on-row-activated={props.onActivateRow}>
+          <gtk_ListBox
+            on-row-activated={props.onActivateRow}
+            use:classes="navigation-sidebar file-sidebar"
+          >
             <Key each={pages()} by={(p) => p.modified}>
               {(page) => {
                 let row;
@@ -54,26 +62,20 @@ export default function SideBar(props) {
                 });
                 return (
                   <gtk_ListBoxRow ref={(r) => (row = r)}>
-                    <gtk_Box
-                      margin-top={16}
-                      margin-bottom={16}
-                      margin-start={8}
-                      margin-end={8}
-                      orientation={Gtk.Orientation.VERTICAL}
-                    >
+                    <gtk_Box orientation={Gtk.Orientation.VERTICAL}>
                       <gtk_Label
+                        use:classes="heading"
                         halign={Gtk.Align.START}
-                        css-classes={["heading"]}
                         label={page().title}
                       />
                       <gtk_Label
+                        use:classes="body"
                         halign={Gtk.Align.START}
-                        css-classes={["body"]}
                         label="Lorem Ipsum"
                       />
                       <gtk_Label
+                        use:classes="caption"
                         halign={Gtk.Align.START}
-                        css-classes={["caption"]}
                         label={page().modified}
                       />
                     </gtk_Box>
